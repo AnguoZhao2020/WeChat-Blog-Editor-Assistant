@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>公众号HTML编辑器 - 替换规则管理</title>
+  <style>
+    body { font-family: system-ui; padding: 20px; max-width: 800px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f4f4f4; }
+    input, textarea { width: 100%; box-sizing: border-box; }
+    .actions { margin-top: 20px; }
+    button { margin-right: 8px; padding: 6px 12px; cursor: pointer; }
+    .error { color: red; }
+  </style>
+</head>
+<body>
+  <h1>预设替换规则</h1>
+  <p>定义常用的正则替换规则，在编辑器的“🔍”下拉菜单中快速应用。</p>
+  <div>
+    <label>规则名称: <input type="text" id="ruleName" placeholder="例如: 清理空div"></label>
+    <label>正则表达式: <input type="text" id="ruleRegex" placeholder="例如: <div[^>]*></div>"></label>
+    <label>替换文本: <input type="text" id="ruleReplacement" placeholder="例如: "></label>
+    <button id="addRule">添加规则</button>
+  </div>
+  <table id="rulesTable">
+    <thead><tr><th>名称</th><th>正则</th><th>替换为</th><th>操作</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <div class="actions">
+    <button id="saveRules">保存所有修改</button>
+    <span id="status"></span>
+  </div>
+  <script src="options.js"></script>
+</body>
+</html>
