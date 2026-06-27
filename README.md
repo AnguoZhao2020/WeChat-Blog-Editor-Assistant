@@ -11,8 +11,8 @@ main function:
 * regular expression replace
 * parsing math equations to svg
 
-Inline equation: $E=mc^2$
+Inline equation: \(E=mc^2\)
 block equation:
-$$\langle a^{\dagger n}a^m \rangle
+\[\langle a^{\dagger n}a^m \rangle
 =
-\langle\psi|a^{\dagger n}a^m |\psi\rangle$$
+\langle\psi|a^{\dagger n}a^m |\psi\rangle\]
