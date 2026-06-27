@@ -66,12 +66,52 @@ function saveRules() {
     status.className = '';
     setTimeout(() => { status.textContent = ''; }, 2000);
   });
+  // ... 保存 replaceRules 的代码 ...
+  const editorSelector = editorSelectorInput.value.trim();
+  chrome.storage.sync.set({ editorSelector }, () => {
+    // 提示保存成功
+  });
+  // 在 saveAll 函数中增加
+  const targetSelectorVal = targetSelector.value.trim();
+  chrome.storage.sync.set({ targetSelector: targetSelectorVal });
+
+  const editMode = document.querySelector('input[name="editMode"]:checked').value;
+  chrome.storage.sync.set({ editMode: editMode });
+
+  const processScope = document.getElementById('processScope').value;
+  const maxFormulas = parseInt(document.getElementById('maxFormulas').value) || 0;
+  chrome.storage.sync.set({ processScope: processScope, maxFormulas: maxFormulas });
 }
 
 // 加载已保存规则
 chrome.storage.sync.get({ [storageKey]: [] }, (data) => {
   rules = data[storageKey];
   renderTable();
+});
+
+// 加载已存储的选择器
+const editorSelectorInput = document.getElementById('editorSelector');
+chrome.storage.sync.get({ editorSelector: 'div.rich_media_content div.ProseMirror[contenteditable="true"]' }, (data) => {
+  editorSelectorInput.value = data.editorSelector;
+});
+
+// 加载时读取
+chrome.storage.sync.get({ editMode: 'paragraph' }, (data) => {
+  document.querySelector(`input[name="editMode"][value="${data.editMode}"]`).checked = true;
+});
+
+chrome.storage.sync.get({
+  processScope: 'document',
+  maxFormulas: 0
+}, (data) => {
+  document.getElementById('processScope').value = data.processScope;
+  document.getElementById('maxFormulas').value = data.maxFormulas;
+});
+
+// 在 loadConfig 函数中增加
+const targetSelector = document.getElementById('targetSelector');
+chrome.storage.sync.get({ targetSelector: 'div#ai_layout_container > div' }, (data) => {
+  targetSelector.value = data.targetSelector;
 });
 
 document.getElementById('addRule').addEventListener('click', addRule);

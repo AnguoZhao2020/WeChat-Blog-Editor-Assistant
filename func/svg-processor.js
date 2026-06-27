@@ -238,6 +238,29 @@ function replaceUseElements(root, reusableElements) {
     }
 }
 
+    // 改造 processSVGInHTML 为接受参数
+async function processSVGInHTML(htmlString) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlString, 'text/html');
+    const svgs = doc.querySelectorAll('svg');
+    if (svgs.length === 0) return htmlString;
+    let processedCount = 0;
+    for (const svg of svgs) {
+        if (svg.getAttribute('data-wx-processed') === 'true') continue;
+        try {
+        const processedSvgString = processSvg(svg);
+        const newSvg = parser.parseFromString(processedSvgString, 'image/svg+xml').documentElement;
+        newSvg.setAttribute('data-wx-processed', 'true');
+        svg.parentNode.replaceChild(newSvg, svg);
+        processedCount++;
+        } catch (e) {
+        console.warn('处理 SVG 失败:', e);
+        }
+    }
+    return processedCount > 0 ? doc.body.innerHTML : htmlString;
+}
+window.processSVGInHTML=processSVGInHTML;
+
 // 导出函数（用于模块化，若在扩展中使用可直接挂载到 window）
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { processSvg };

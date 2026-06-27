@@ -13,10 +13,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+// 移除原来的切换编辑器逻辑，改为打开选项页
 chrome.action.onClicked.addListener((tab) => {
-  if (tab.url && tab.url.includes('mp.weixin.qq.com/cgi-bin/appmsg')) {
-    chrome.tabs.sendMessage(tab.id, { type: 'toggleFullscreenEditor' });
-  }
+  chrome.runtime.openOptionsPage();
 });
 
 setIcon(false);

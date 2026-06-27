@@ -22,29 +22,20 @@
     }
   },
   "options_page": "options.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "content_scripts": [
     {
       "matches": ["*://mp.weixin.qq.com/cgi-bin/appmsg*"],
-      "css": [
-        "lib/codemirror/codemirror.min.css",
-        "lib/codemirror/theme/material-darker.min.css",
-        "lib/codemirror/theme/material.min.css",
-        "lib/codemirror/theme/ttcn.min.css",
-        "lib/codemirror/theme/eclipse.min.css",
-        "styles.css"
-      ],
       "js": [
-        "lib/mathjax/mathjax-config.js", 
-        "lib/mathjax/tex-svg.js",
-        "lib/codemirror/codemirror.min.js",
-        "lib/codemirror/mode/xml.min.js",
-        "lib/codemirror/mode/javascript.min.js",
-        "lib/codemirror/mode/css.min.js",
-        "lib/codemirror/mode/htmlmixed.min.js",
-        "lib/svg-processor.js",
-        "content.js"
+        "injection.js"
       ],
-      "run_at": "document_end"
+      "run_at": "document_end",
+      "type":"module"
     }
   ]
 }
