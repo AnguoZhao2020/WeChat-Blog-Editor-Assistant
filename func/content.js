@@ -37,6 +37,94 @@
     // 退出按钮保持固定红色背景、白色文字（已内联样式，无需额外处理）
   }
 
+  // 辅助函数：实际执行模板替换
+  function applyTemplateByKey(rootKey, jsonData, templateHtml) {
+    const data = (typeof jsonData === 'object' && jsonData !== null) ? jsonData : jsonData;
+    let newHtml = templateHtml.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
+      const parts = path.trim().split('.');
+      let value = data;
+      for (const part of parts) {
+        if (value && typeof value === 'object' && part in value) {
+          value = value[part];
+        } else {
+          return '';
+        }
+      }
+      return value !== undefined && value !== null ? String(value) : '';
+    });
+    cmEditor.setValue(newHtml);
+    cmEditor.refresh();
+    showNotification(`模板 "${rootKey}" 套用成功`, 1500);
+  }  
+
+  async function applyTemplate() {
+    if (!isOpen || !cmEditor) {
+      showNotification('请先打开全屏 HTML 编辑器', 2000);
+      return;
+    }
+    const html = cmEditor.getValue();
+    // 提取纯文本（忽略所有 HTML 标签）
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const text = doc.body.textContent.trim();
+    if (!text) {
+      showNotification('当前内容为空', 2000);
+      return;
+    }
+    // 尝试解析 JSON
+    let json;
+    try {
+      json = parseObjectLiteral(text);
+    } catch (e) {
+      showNotification('内容不是有效的 JSON', 2000);
+      return;
+    }
+    // 获取模板库
+    const result = await new Promise(resolve => {
+      chrome.storage.local.get({ templates: {} }, resolve);
+    });
+    const templates = result.templates;
+    const keys = Object.keys(json);
+
+    // 2. 收集用户输入的所有顶层键
+    const inputKeys = new Set(keys);
+
+    // 3. 确定每个输入键所属的模板
+    const keyToTemplateMap = {}; // 键 -> 模板根键
+    for (const [templateKey, templateData] of Object.entries(templates)) {
+      const templateKeys = new Set(templateData.keys || []);
+      for (const inputKey of inputKeys) {
+        if (templateKeys.has(inputKey)) {
+          if (keyToTemplateMap[inputKey] && keyToTemplateMap[inputKey] !== templateKey) {
+            showNotification(`键 "${inputKey}" 同时出现在多个模板中，请检查模板配置`, 3000);
+            return;
+          }
+          keyToTemplateMap[inputKey] = templateKey;
+        }
+      }
+    }
+
+    // 检查是否所有输入键都有所属模板
+    for (const inputKey of inputKeys) {
+      if (!keyToTemplateMap[inputKey]) {
+        showNotification(`键 "${inputKey}" 未在任何模板中找到`, 3000);
+        return;
+      }
+    }
+
+    // 检查所有输入键是否属于同一个模板
+    const templateKeysSet = new Set(Object.values(keyToTemplateMap));
+    if (templateKeysSet.size > 1) {
+      showNotification(`输入键分属于多个模板（${[...templateKeysSet].join(', ')}），请确保所有键属于同一模板`, 3000);
+      return;
+    }
+    const matchedTemplateKey = templateKeysSet.values().next().value;
+    const templateData = templates[matchedTemplateKey];
+    const htmlContent = typeof templateData === 'string' ? templateData : templateData.html;
+    applyTemplateByKey(matchedTemplateKey, json, htmlContent);
+  }
+
+
   // 创建全屏编辑器
   function createFullscreenEditor(initialHTML) {
     overlay = document.createElement('div');
@@ -70,6 +158,7 @@
       <button hidden class="wx-svg-btn" title="处理SVG" style="background:#f0f0f0;border:none;padding:6px 12px;margin-left:8px;border-radius:4px;cursor:pointer;">处理 SVG...</button>
       <button class="wx-latex-btn" title="渲染LaTeX公式" style="background:#f0f0f0;border:none;padding:6px 12px;margin-left:8px;border-radius:4px;cursor:pointer;">LaTeX2SVG...</button>
       <button class="wx-replace-btn" title="预设替换规则" style="background:#f0f0f0;border:none;padding:6px 12px;margin-left:8px;border-radius:4px;cursor:pointer;">正则替换...</button>
+      <button class="wx-template-btn" title="套用模版" style="background:#f0f0f0;border:none;padding:6px 12px;margin-left:8px;border-radius:4px;cursor:pointer;">套用模版...</button>
       <button class="wx-exit-btn" title="退出编辑" style="background:#f44336;color:white;border:none;padding:6px 12px;margin-left:8px;border-radius:4px;cursor:pointer;">✕</button>
     `;
     overlay.appendChild(toolbar);
@@ -100,7 +189,7 @@
     // toolbar.querySelector('.wx-svg-btn').onclick = processSVGInHTML;
     // toolbar.querySelector('.wx-theme-btn').onclick = toggleTheme;
     toolbar.querySelector('.wx-replace-btn').onclick = (e) => showReplaceDropdown(e.target);
-    // toolbar.querySelector('.wx-exit-btn').onclick = () => toggleEditor();
+    toolbar.querySelector('.wx-template-btn').onclick = () => applyTemplate();
     toolbar.querySelector('.wx-exit-btn').onclick = () => exitEditor();
     const themeSwitch = toolbar.querySelector('#theme-toggle');
     if (themeSwitch) {

@@ -81,6 +81,90 @@ function showNotification(message, duration = 2000) {
 }
 window.showNotification=showNotification;
 
+function formatText(str) {
+  // 匹配：(ASCII字符或数字) + (中文或全角字符)
+  const reg1 = /([a-zA-Z0-9])([\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef])/g;
+  // 匹配：(中文或全角字符) + (ASCII字符或数字)
+  const reg2 = /([\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef])([a-zA-Z0-9])/g;
+
+  // 排除中文标点符号（即如果左边或右边是中文标点，则不插入空格）
+  // 这里的标点包括：逗号、句号、问号、叹号、冒号、分号、引号、括号等
+  const chinesePunctuation = /[\u3002\uff1b\uff0c\uff1a\u201c\u201d\u2018\u2019\uff08\uff09\u300a\u300b\u3001\uff1f\uff01\u2014]/;
+
+  return str
+    .replace(reg1, (match, p1, p2) => {
+      return chinesePunctuation.test(p2) ? match : `${p1} ${p2}`;
+    })
+    .replace(reg2, (match, p1, p2) => {
+      return chinesePunctuation.test(p1) ? match : `${p1} ${p2}`;
+    })
+    .replace(/\s+/g, ' '); // 确保多个连续空格合并为一个，同时过滤掉原有的多余空格
+}
+
+function applySpacingRules(root) {
+  // 1. 对每个 span 内部的直接文本节点应用 formatText
+  const spans = root.querySelectorAll('span');
+  for (const span of spans) {
+    // 收集直接文本子节点
+    const textNodes = [];
+    for (const child of span.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        textNodes.push(child);
+      }
+    }
+    for (const textNode of textNodes) {
+      const newText = formatText(textNode.textContent);
+      if (newText !== textNode.textContent) {
+        textNode.textContent = newText;
+      }
+    }
+  }
+
+  // 2. 处理相邻 span 之间的中英文混合空格
+  const allSpans = Array.from(root.querySelectorAll('span'));
+  const isAscii = (c) => /[a-zA-Z0-9]/.test(c);
+  const isChinese = (c) => /[\u4e00-\u9fa5]/.test(c);
+  const punctuation = /[\u3002\uff1b\uff0c\uff1a\u201c\u201d\u2018\u2019\uff08\uff09\u300a\u300b\u3001\uff1f\uff01\u2014,.;:!?()，。；：！？（）]/;
+
+  for (let i = 0; i < allSpans.length - 1; i++) {
+    const prev = allSpans[i];
+    const next = allSpans[i+1];
+    // 必须是相邻兄弟
+    if (prev.nextElementSibling === next) {
+      const prevText = prev.textContent.trim();
+      const nextText = next.textContent.trim();
+      if (prevText && nextText) {
+        const lastChar = prevText[prevText.length - 1];
+        const firstChar = nextText[0];
+        if ((isAscii(lastChar) && isChinese(firstChar)) ||
+            (isChinese(lastChar) && isAscii(firstChar))) {
+          if (!punctuation.test(lastChar) && !punctuation.test(firstChar)) {
+            // 在后一个 span 的开头插入空格（若不存在）
+            // 找到第一个文本节点
+            let firstTextNode = null;
+            for (const child of next.childNodes) {
+              if (child.nodeType === Node.TEXT_NODE) {
+                firstTextNode = child;
+                break;
+              }
+            }
+            if (firstTextNode) {
+              if (!firstTextNode.textContent.startsWith(' ')) {
+                firstTextNode.textContent = ' ' + firstTextNode.textContent;
+              }
+            } else {
+              // 没有文本节点，创建一个
+              const newTextNode = document.createTextNode(' ' + next.textContent);
+              next.innerHTML = '';
+              next.appendChild(newTextNode);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 /**
  * 将嵌套的 span 展开为平级 span，合并内联样式（子样式优先）
  * @param {string} html 原始 HTML 字符串
@@ -237,6 +321,7 @@ function flattenSpanNesting(html) {
   }
   processNode(body);
   adjustSpacing();
+  applySpacingRules(body);
   
   return body.innerHTML;
 }
@@ -341,3 +426,65 @@ function minifyHTML(html) {
   return minify;
 }
 window.minifyHTML=minifyHTML;
+
+// 宽松解析：先尝试标准 JSON，失败则尝试 JS 对象字面量
+function tryParseLooseJSON(text) {
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    // 尝试作为 JavaScript 对象字面量解析（注意 CSP 可能会限制 new Function）
+    try {
+      const fn = new Function('return ' + text);
+      const result = fn();
+      // 验证是否为对象
+      console.log(result);
+      if (result && typeof result === 'object') {
+        return result;
+      }
+      throw new Error('不是有效对象');
+    } catch (e2) {
+      throw new Error('无法解析为 JSON 或 JavaScript 对象');
+    }
+  }
+}
+window.tryParseLooseJSON=tryParseLooseJSON;
+
+function parseObjectLiteral(text) {
+  // 去除首尾空白，确保最外层有 {}
+  text = text.trim();
+  const lines = text.split('\n');
+  const processedLines = [];
+  let insideObject = false; // 用于判断是否在嵌套对象内，但此处简化处理
+
+  for (let line of lines) {
+    line = line.trim();
+    if (!line) continue;
+    line = line.replace(/([^\:\}\{]+)/g, '"$1"');
+    line = line.replace(/\"\:\"\/\//,'://');
+    processedLines.push(line);
+  }
+
+  // 重新构建 JSON 字符串
+  let jsonString = '';
+  let depth = 0;
+  for (let i = 0; i < processedLines.length; i++) {
+    const line = processedLines[i];
+    if (line.endsWith('}') || line.endsWith('{')) {
+      jsonString += line + '\n';
+    } else {
+      jsonString += line + ',\n';
+    }
+  }
+  if (!(jsonString.startsWith('{') && jsonString.endsWith('}'))) {
+    jsonString = '{' + jsonString + '}';
+    jsonString = jsonString.replace(/\,\n\}/,'}');
+  }
+
+  try {
+    console.log(jsonString);
+    return JSON.parse(jsonString);
+  } catch (e) {
+    throw new Error('无法解析输入的文本为有效的对象：' + e.message);
+  }
+}
+window.parseObjectLiteral=parseObjectLiteral;

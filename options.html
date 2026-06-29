@@ -56,6 +56,18 @@
     <thead><tr><th>名称</th><th>正则</th><th>替换为</th><th>操作</th></tr></thead>
     <tbody></tbody>
   </table>
+  <hr>
+  <h2>模板库管理</h2>
+  <p>定义 JSON 根键与对应 HTML 模板的映射。占位符使用 <code>{{key}}</code>，将从 JSON 对象中取值。</p>
+  <div>
+    <label>根键：<input type="text" id="templateKey" placeholder="例如 referenceArticle"></label>
+    <label>模板 HTML：<textarea id="templateHtml" rows="4" cols="50" placeholder="<section>...</section>"></textarea></label>
+    <button id="addTemplateBtn">添加/更新模板</button>
+  </div>
+  <table id="templateTable">
+    <thead><tr><th>根键</th><th>模板预览</th><th>键集合</th><th>操作</th></tr></thead>
+    <tbody></tbody>
+  </table>
   <div class="actions">
     <button id="saveRules">保存所有修改</button>
     <span id="status"></span>

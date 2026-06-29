@@ -116,3 +116,99 @@ chrome.storage.sync.get({ targetSelector: 'div#ai_layout_container > div' }, (da
 
 document.getElementById('addRule').addEventListener('click', addRule);
 document.getElementById('saveRules').addEventListener('click', saveRules);
+
+function loadTemplates() {
+  chrome.storage.local.get({ templates: {} }, (data) => {
+    const templates = data.templates;
+    const tbody = document.querySelector('#templateTable tbody');
+    tbody.innerHTML = '';
+    for (const [key, value] of Object.entries(templates)) {
+      const html = typeof value === 'string' ? value : value.html;
+      const keys = Array.isArray(value.keys) ? value.keys : [];
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${key}</td>
+        <td><pre style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${html}</pre></td>
+        <td>${keys.join(', ')}</td>
+        <td>
+          <button class="edit-template" data-key="${key}">编辑</button>
+          <button class="delete-template" data-key="${key}">删除</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+    // 绑定事件
+    tbody.querySelectorAll('.edit-template').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.key;
+        document.getElementById('templateKey').value = key;
+        document.getElementById('templateHtml').value = templates[key];
+      });
+    });
+    tbody.querySelectorAll('.delete-template').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.key;
+        if (confirm(`确定删除模板 "${key}" 吗？`)) {
+          delete templates[key];
+          chrome.storage.local.set({ templates }, loadTemplates);
+        }
+      });
+    });
+  });
+}
+
+document.getElementById('addTemplateBtn').addEventListener('click', () => {
+  const key = document.getElementById('templateKey').value.trim();
+  const html = document.getElementById('templateHtml').value.trim();
+  if (!key || !html) {
+    alert('根键和模板 HTML 都不能为空');
+    return;
+  }
+
+  // 解析模板中的所有占位符键
+  const keys = extractKeys(html);
+  keys.add(key); // 加入根键本身
+
+  // 获取所有现有模板（包括当前正在编辑的）
+  chrome.storage.local.get({ templates: {} }, (data) => {
+    const templates = data.templates;
+    // 检查键是否与其他模板冲突（除了自身）
+    for (const [existingKey, existingTemplate] of Object.entries(templates)) {
+      // 如果是更新同一个模板，跳过自身
+      if (existingKey === key) continue;
+      const existingKeys = new Set(existingTemplate.keys || []);
+      // 检查是否有交集
+      for (const k of keys) {
+        if (existingKeys.has(k)) {
+          alert(`键 "${k}" 已在模板 "${existingKey}" 中使用，请修改占位符或键名`);
+          return;
+        }
+      }
+    }
+
+    // 保存模板，同时保存键集合
+    templates[key] = {
+      html: html,
+      keys: Array.from(keys)
+    };
+    chrome.storage.local.set({ templates }, () => {
+      loadTemplates();
+      document.getElementById('templateKey').value = '';
+      document.getElementById('templateHtml').value = '';
+    });
+  });
+});
+
+// 辅助：提取模板中的占位符键
+function extractKeys(html) {
+  const keys = new Set();
+  const regex = /\{\{([^}]+)\}\}/g;
+  let match;
+  while ((match = regex.exec(html)) !== null) {
+    keys.add(match[1].trim());
+  }
+  return keys;
+}
+
+// 初始化
+loadTemplates();
