@@ -4,81 +4,183 @@
   <meta charset="utf-8">
   <title>公众号HTML编辑器 - 配置管理</title>
   <style>
-    body { font-family: system-ui; padding: 20px; max-width: 800px; margin: 0 auto; }
-    h1 { font-size: 1.5rem; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; background: #f5f7fa; }
+
+    /* 左侧菜单 */
+    .sidebar {
+      width: 220px;
+      background: #2c3e50;
+      color: #ecf0f1;
+      padding: 20px 0;
+      flex-shrink: 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar h1 {
+      font-size: 1.2rem;
+      margin: 0 0 20px 0;
+      padding: 0 20px;
+      font-weight: 200;
+    }
+    .sidebar .menu-item {
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+      border-left: 4px solid transparent;
+      font-size: 0.85rem;
+    }
+    .sidebar .menu-item:hover {
+      background: #34495e;
+    }
+    .sidebar .menu-item.active {
+      background: #1a2632;
+      border-left-color: #3498db;
+      font-weight: 300;
+    }
+
+    /* 右侧内容区 */
+    .main {
+      display: flex;
+      padding: 30px 40px;
+      overflow-y: auto;
+      background: #fff;
+    }
+    .section-panel {
+      display: none;
+      width: 900px;
+      margin: 0 auto;
+    }
+    .section-panel.active {
+      display: block;
+    }
+
+    /* 内部样式（原样式微调） */
+    h2 { font-size: 1.3rem; margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
     th { background: #f4f4f4; }
-    input, textarea { width: 100%; box-sizing: border-box; }
-    .actions { margin-top: 20px; }
+    input, textarea { width: 100%; box-sizing: border-box; padding: 6px; margin: 4px 0; }
+    .actions { margin-top: 20px;margin-left: 12px; }
     button { margin-right: 8px; padding: 6px 12px; cursor: pointer; }
-    .error { color: red; }
+    .inline-group { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .inline-group label { display: flex; align-items: center; gap: 6px; }
+    .hint { font-size: 0.85rem; color: #666; margin: 4px 0 12px 0; }
+
+    #logContainer {
+      max-height: 400px;
+      overflow: auto;
+      border: 1px solid #ddd;
+      padding: 8px;
+      background: #f9f9f9;
+      border-radius: 4px;
+    }
+    #logContent {
+      margin: 0;
+      white-space: pre-wrap;
+      font-size: 12px;
+      font-family: monospace;
+    }
   </style>
 </head>
 <body>
-  <h1>配置与替换规则</h1>
-  <div>
-    <label for="editorSelector">原始编辑器 CSS 选择器：</label>
-    <input type="text" id="editorSelector" style="width: 100%;" placeholder="例如: div.rich_media_content div.ProseMirror[contenteditable='true']">
-    <p style="font-size:12px; color:#666;">当页面布局变化导致扩展找不到编辑器时，请在此更新选择器。</p>
-  </div>
-  <div>
-    <label for="targetSelector">浮动按钮定位目标 CSS 选择器：</label>
-    <input type="text" id="targetSelector" style="width: 100%;" placeholder="例如: div#ai_layout_container > div">
-    <p style="font-size:12px; color:#666;">按钮将相对于此元素的上方偏移显示。</p>
-  </div>
-  <h2>HTML 编辑模式</h2>
-  <div style="display:flex;">
-    <label><input type="radio" name="editMode" value="paragraph" checked>编辑当前段落</label>
-    <label><input type="radio" name="editMode" value="full">编辑全部内容</label>
-  </div>
-  <h2>公式处理设置</h2>
-  <div>
-    <label>处理范围：</label>
-    <select id="processScope">
-      <option value="document">从文档开始</option>
-      <option value="cursor">从光标位置</option>
-    </select>
-  </div>
-  <div">
-    <label>最多处理段落数（0表示不限制）：</label>
-    <input type="number" id="maxFormulas" value="0" min="0" step="1">
-  </div>
-  <hr>
-  <p>定义常用的正则替换规则，在编辑器的“🔍”下拉菜单中快速应用。</p>
-  <div>
-    <label>规则名称: <input type="text" id="ruleName" placeholder="例如: 清理空div"></label>
-    <label>正则表达式: <input type="text" id="ruleRegex" placeholder="例如: <div[^>]*></div>"></label>
-    <label>替换文本: <input type="text" id="ruleReplacement" placeholder="例如: "></label>
-    <button id="addRule">添加规则</button>
-  </div>
-  <table id="rulesTable">
-    <thead><tr><th>名称</th><th>正则</th><th>替换为</th><th>操作</th></tr></thead>
-    <tbody></tbody>
-  </table>
-  <hr>
-  <h2>模板库管理</h2>
-  <p>定义 JSON 根键与对应 HTML 模板的映射。占位符使用 <code>{{key}}</code>，将从 JSON 对象中取值。</p>
-  <div>
-    <label>根键：<input type="text" id="templateKey" placeholder="例如 referenceArticle"></label>
-    <label>模板 HTML：<textarea id="templateHtml" rows="4" cols="50" placeholder="<section>...</section>"></textarea></label>
-    <button id="addTemplateBtn">添加/更新模板</button>
-  </div>
-  <table id="templateTable">
-    <thead><tr><th>根键</th><th>模板预览</th><th>键集合</th><th>操作</th></tr></thead>
-    <tbody></tbody>
-  </table>
+
+<!-- 左侧菜单 -->
+<div class="sidebar">
+  <h1>⚙️ 扩展配置</h1>
+  <div class="menu-item active" data-target="general">常规设置</div>
+  <div class="menu-item" data-target="rules">替换规则</div>
+  <div class="menu-item" data-target="templates">模板库</div>
+  <div class="menu-item" data-target="logs">扩展日志</div>
   <div class="actions">
-    <button id="saveRules">保存所有修改</button>
+    <button id="saveRules">保存修改</button>
     <span id="status"></span>
   </div>
-  <hr>
-  <h2>扩展日志</h2>
-  <button id="clearLogs">清空日志</button>
-  <button id="refreshLogs">刷新</button>
-  <div id="logContainer" style="max-height:400px;overflow:auto;border:1px solid #ccc;padding:8px;background:#f9f9f9;">
-    <pre id="logContent" style="margin:0;white-space:pre-wrap;font-size:12px;"></pre>
+</div>
+
+<!-- 右侧内容 -->
+<div class="main">
+
+  <!-- ========== 常规设置 ========== -->
+  <div class="section-panel active" id="section-general">
+    <h2>常规设置</h2>
+    <div>
+      <label for="editorSelector">原始编辑器 CSS 选择器：</label>
+      <input type="text" id="editorSelector" placeholder="例如: div.rich_media_content div.ProseMirror[contenteditable='true']">
+      <p class="hint">当页面布局变化导致扩展找不到编辑器时，请在此更新选择器。</p>
+    </div>
+    <div>
+      <label for="targetSelector">浮动按钮定位目标 CSS 选择器：</label>
+      <input type="text" id="targetSelector" placeholder="例如: div#ai_layout_container > div">
+      <p class="hint">按钮将相对于此元素的上方偏移显示。</p>
+    </div>
+    <h2 style="border-bottom:1px solid #eee; padding-bottom:8px;">HTML 编辑模式</h2>
+    <div class="inline-group">
+      <label><input type="radio" name="editMode" value="paragraph" checked> 编辑当前段落</label>
+      <label><input type="radio" name="editMode" value="full"> 编辑全部内容</label>
+    </div>
+    <h2 style="border-bottom:1px solid #eee; padding-bottom:8px; margin-top:24px;">公式处理设置</h2>
+    <div>
+      <label>处理范围：</label>
+      <select id="processScope">
+        <option value="document">从文档开始</option>
+        <option value="cursor">从光标位置</option>
+      </select>
+    </div>
+    <div>
+      <label>最多处理段落数（0表示不限制）：</label>
+      <input type="number" id="maxFormulas" value="0" min="0" step="1" style="width:100px;">
+    </div>
   </div>
-  <script src="options.js"></script>
+
+  <!-- ========== 替换规则 ========== -->
+  <div class="section-panel" id="section-rules">
+    <h2>替换规则</h2>
+    <p>定义常用的正则替换规则，在编辑器的“🔍”下拉菜单中快速应用。</p>
+    <div class="inline-group">
+      <label>规则名称: <input type="text" id="ruleName" placeholder="例如: 清理空div" style="width:150px;"></label>
+      <label>正则表达式: <input type="text" id="ruleRegex" placeholder="例如: &lt;div[^&gt;]*&gt;&lt;/div&gt;" style="width:200px;"></label>
+      <label>替换文本: <input type="text" id="ruleReplacement" placeholder="替换为" style="width:120px;"></label>
+      <button id="addRule">添加规则</button>
+    </div>
+    <table id="rulesTable">
+      <thead><tr><th>名称</th><th>正则</th><th>替换为</th><th>操作</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- ========== 模板库 ========== -->
+  <div class="section-panel" id="section-templates">
+    <h2>模板库管理</h2>
+    <p>定义 JSON 根键与对应 HTML 模板的映射。占位符使用 <code>{{key}}</code>，将从 JSON 对象中取值。</p>
+    <div>
+      <label>根键：<input type="text" id="templateKey" placeholder="例如 referenceArticle" style="width:200px;"></label>
+      <label>模板 HTML：<textarea id="templateHtml" rows="4" cols="50" placeholder="<section>...</section>" style="width:100%;"></textarea></label>
+      <button id="addTemplateBtn">添加/更新模板</button>
+    </div>
+    <table id="templateTable">
+      <thead><tr><th>根键</th><th>模板预览</th><th>键集合</th><th>操作</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- ========== 扩展日志 ========== -->
+  <div class="section-panel" id="section-logs">
+    <h2>扩展日志</h2>
+    <div>
+      <button id="clearLogs">清空日志</button>
+      <button id="refreshLogs">刷新</button>
+    </div>
+    <div id="logContainer">
+      <pre id="logContent">加载日志中...</pre>
+    </div>
+  </div>
+
+</div>
+
+<!-- 原有的 options.js 脚本（保持不变，加载顺序在切换脚本之后） -->
+<script src="options.js"></script>
+
 </body>
 </html>

@@ -245,3 +245,39 @@ document.getElementById('refreshLogs').addEventListener('click', loadLogs);
 
 // 初始加载
 loadLogs();
+
+(function() {
+  const menuItems = document.querySelectorAll('.menu-item');
+  const panels = {
+    general: document.getElementById('section-general'),
+    rules: document.getElementById('section-rules'),
+    templates: document.getElementById('section-templates'),
+    logs: document.getElementById('section-logs')
+  };
+
+  // 切换面板
+  function showPanel(target) {
+    // 隐藏所有面板
+    Object.values(panels).forEach(p => p.classList.remove('active'));
+    // 显示目标
+    if (panels[target]) panels[target].classList.add('active');
+    // 更新菜单状态
+    menuItems.forEach(item => {
+      item.classList.toggle('active', item.dataset.target === target);
+    });
+  }
+
+  // 绑定点击事件
+  menuItems.forEach(item => {
+    item.addEventListener('click', function(e) {
+      const target = this.dataset.target;
+      if (target) showPanel(target);
+    });
+  });
+
+  // 如果 URL 有 hash，则跳转到对应面板
+  const hash = window.location.hash.replace('#', '');
+  if (hash && panels[hash]) {
+    showPanel(hash);
+  }
+})();
